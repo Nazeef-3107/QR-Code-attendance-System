@@ -1,0 +1,2488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>QR Code Attendance System</title>
+    <!-- jsQR library for QR code scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        /* Mobile-First Responsive Containers */
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+        }
+
+        /* Mobile Header */
+        .mobile-header {
+            display: none;
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-header {
+                display: flex;
+            }
+        }
+
+        .menu-toggle {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 44px;
+        }
+
+        .mobile-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 998;
+        }
+
+        .mobile-overlay.active {
+            display: block;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 260px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: none;
+            flex-direction: column;
+            position: relative;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: 80%;
+                max-width: 300px;
+                z-index: 999;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+        }
+
+        @media (min-width: 769px) {
+            .sidebar.active {
+                display: flex;
+            }
+        }
+
+        .sidebar-header {
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        @media (max-width: 480px) {
+            .sidebar-header {
+                padding: 20px 15px;
+            }
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.3em;
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 480px) {
+            .sidebar-header h2 {
+                font-size: 1.1em;
+            }
+        }
+
+        .sidebar-header p {
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 20px 0;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            padding: 15px 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 48px;
+            touch-action: manipulation;
+        }
+
+        @media (max-width: 480px) {
+            .nav-item {
+                padding: 12px 20px;
+                font-size: 0.95em;
+            }
+        }
+
+        .nav-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            border-left-color: #667eea;
+        }
+
+        .nav-item.active {
+            background: rgba(102, 126, 234, 0.15);
+            border-left-color: #667eea;
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            font-size: 1.2em;
+        }
+
+        .logout-btn {
+            margin: 20px;
+            padding: 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+            min-height: 44px;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .screen {
+            display: none;
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .screen {
+                padding: 15px 10px;
+            }
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .screen-header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 768px) {
+            .screen-header {
+                padding: 20px 15px;
+                margin-bottom: 20px;
+            }
+        }
+
+        .screen-header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        @media (max-width: 768px) {
+            .screen-header h1 {
+                font-size: 1.5em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .screen-header h1 {
+                font-size: 1.3em;
+            }
+        }
+
+        .screen-header p {
+            color: #666;
+        }
+
+        @media (max-width: 480px) {
+            .screen-header p {
+                font-size: 0.9em;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .card {
+                padding: 20px 15px;
+            }
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        @media (max-width: 480px) {
+            .card h3 {
+                font-size: 1.1em;
+                margin-bottom: 15px;
+            }
+        }
+
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .stat-cards {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stat-cards {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .stat-card {
+                padding: 20px 15px;
+            }
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 768px) {
+            .stat-value {
+                font-size: 2em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stat-value {
+                font-size: 1.8em;
+            }
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 480px) {
+            .stat-label {
+                font-size: 0.85em;
+            }
+        }
+
+        /* Forms */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 480px) {
+            .form-group {
+                margin-bottom: 15px;
+            }
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1em;
+            font-family: inherit;
+        }
+
+        @media (max-width: 480px) {
+            input, select, textarea {
+                padding: 10px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1em;
+            min-height: 44px;
+            touch-action: manipulation;
+        }
+
+        @media (max-width: 480px) {
+            .btn {
+                padding: 12px 20px;
+                font-size: 0.95em;
+                min-height: 48px;
+            }
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Tables - Mobile Responsive */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        @media (max-width: 768px) {
+            table {
+                font-size: 0.85em;
+            }
+            
+            table th,
+            table td {
+                padding: 8px 6px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            table {
+                font-size: 0.8em;
+            }
+        }
+
+        /* Role Tabs - Mobile Responsive */
+        .role-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 480px) {
+            .role-tabs {
+                gap: 8px;
+                flex-direction: column;
+            }
+        }
+
+        .role-tab {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            font-weight: 600;
+            min-height: 44px;
+        }
+
+        @media (max-width: 480px) {
+            .role-tab {
+                min-width: auto;
+                width: 100%;
+            }
+        }
+
+        .role-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        /* Video/Camera - Mobile Responsive */
+        #qr-video {
+            width: 100%;
+            max-width: 500px;
+            height: auto;
+        }
+
+        @media (max-width: 480px) {
+            #qr-video {
+                max-width: 100%;
+            }
+        }
+
+        /* Touch improvements */
+        @media (max-width: 768px) {
+            * {
+                -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+            }
+        }
+
+        /* QR Container */
+        .qr-container img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Alert Messages */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .alert {
+                padding: 12px 15px;
+                font-size: 0.9em;
+            }
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        /* Login Screen */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 450px;
+            width: 100%;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .login-header h1 {
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: #666;
+        }
+
+        .credentials-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            font-size: 0.9em;
+        }
+
+        .credentials-info h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100vh;
+                z-index: 1000;
+            }
+
+            .stat-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        .spinner.show {
+            display: block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>🎓 QR Attendance</h1>
+                <p>Secure College Attendance Management</p>
+            </div>
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="login-username" required placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" required placeholder="Enter your password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Login</button>
+                <div id="login-alert" class="alert"></div>
+            </form>
+            <div class="credentials-info">
+                <p style="text-align: center; margin-top: 15px;">
+                    Don't have an account? <a href="#" onclick="showSignup(event)" style="color: #667eea; font-weight: 600;">Sign Up</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Signup Screen -->
+    <div id="signup-screen" class="login-container" style="display: none;">
+        <div class="login-box" style="max-width: 600px;">
+            <div class="login-header">
+                <h1>📝 Create Account</h1>
+                <p>Register for QR Attendance System</p>
+            </div>
+            
+            <!-- Role Selection -->
+            <div class="form-group">
+                <label>Select Your Role</label>
+                <select id="signup-role" onchange="handleRoleChange()" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px;">
+                    <option value="">-- Choose Role --</option>
+                    <option value="student">Student</option>
+                    <option value="faculty">Faculty</option>
+                    <option value="admin">Administrator</option>
+                </select>
+            </div>
+
+            <!-- Student Signup Form -->
+            <form id="student-signup-form" style="display: none;" onsubmit="handleStudentSignup(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Username *</label>
+                        <input type="text" id="student-signup-username" required placeholder="Choose a username">
+                    </div>
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="student-signup-email" required placeholder="your.email@college.edu">
+                    </div>
+                    <div class="form-group">
+                        <label>Password *</label>
+                        <input type="password" id="student-signup-password" required placeholder="Minimum 6 characters">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password *</label>
+                        <input type="password" id="student-signup-confirm" required placeholder="Re-enter password">
+                    </div>
+                    <div class="form-group">
+                        <label>Student ID *</label>
+                        <input type="text" id="student-signup-id" required placeholder="Your student ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="student-signup-name" required placeholder="Your full name">
+                    </div>
+                    <div class="form-group">
+                        <label>Department</label>
+                        <input type="text" id="student-signup-dept" placeholder="e.g., Computer Science">
+                    </div>
+                    <div class="form-group">
+                        <label>Semester</label>
+                        <input type="number" id="student-signup-sem" min="1" max="8" placeholder="1-8">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success btn-full">Create Student Account</button>
+                <div id="student-signup-alert" class="alert"></div>
+            </form>
+
+            <!-- Faculty Signup Form -->
+            <form id="faculty-signup-form" style="display: none;" onsubmit="handleFacultySignup(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Username *</label>
+                        <input type="text" id="faculty-signup-username" required placeholder="Choose a username">
+                    </div>
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="faculty-signup-email" required placeholder="your.email@college.edu">
+                    </div>
+                    <div class="form-group">
+                        <label>Password *</label>
+                        <input type="password" id="faculty-signup-password" required placeholder="Minimum 6 characters">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password *</label>
+                        <input type="password" id="faculty-signup-confirm" required placeholder="Re-enter password">
+                    </div>
+                    <div class="form-group">
+                        <label>Faculty ID *</label>
+                        <input type="text" id="faculty-signup-id" required placeholder="Your faculty ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="faculty-signup-name" required placeholder="Your full name">
+                    </div>
+                    <div class="form-group">
+                        <label>Department</label>
+                        <input type="text" id="faculty-signup-dept" placeholder="e.g., Computer Science">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success btn-full">Create Faculty Account</button>
+                <div id="faculty-signup-alert" class="alert"></div>
+            </form>
+
+            <!-- Admin Signup Form -->
+            <form id="admin-signup-form" style="display: none;" onsubmit="handleAdminSignup(event)">
+                <div class="alert alert-info show">
+                    <strong>⚠️ Note:</strong> Admin registration requires an admin code. Contact system administrator for access.
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Username *</label>
+                        <input type="text" id="admin-signup-username" required placeholder="Choose a username">
+                    </div>
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="admin-signup-email" required placeholder="admin.email@college.edu">
+                    </div>
+                    <div class="form-group">
+                        <label>Password *</label>
+                        <input type="password" id="admin-signup-password" required placeholder="Minimum 6 characters">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password *</label>
+                        <input type="password" id="admin-signup-confirm" required placeholder="Re-enter password">
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>Admin Code *</label>
+                        <input type="text" id="admin-signup-code" required placeholder="Contact admin for access code">
+                        <small style="color: #666; display: block; margin-top: 5px;">For demo: Use code ADMIN2024</small>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success btn-full">Create Admin Account</button>
+                <div id="admin-signup-alert" class="alert"></div>
+            </form>
+
+            <div class="credentials-info">
+                <p style="text-align: center; margin-top: 15px;">
+                    Already have an account? <a href="#" onclick="showLogin(event)" style="color: #667eea; font-weight: 600;">Login</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app-container" class="app-container" style="display: none;">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <button class="menu-toggle" onclick="toggleMobileMenu()">
+                ☰ Menu
+            </button>
+            <div>
+                <strong id="mobile-user-name">User</strong>
+                <span style="font-size: 0.85em; color: #666;" id="mobile-user-role"></span>
+            </div>
+        </div>
+
+        <!-- Mobile Overlay -->
+        <div class="mobile-overlay" id="mobile-overlay" onclick="toggleMobileMenu()"></div>
+
+        <!-- Sidebar Navigation -->
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h2 id="user-name">User Name</h2>
+                <p id="user-role">Role</p>
+            </div>
+            <div class="nav-menu" id="nav-menu">
+                <!-- Navigation items will be dynamically loaded -->
+            </div>
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Student Dashboard -->
+            <div id="student-dashboard" class="screen">
+                <div class="screen-header">
+                    <h1>📚 Student Dashboard</h1>
+                    <p>Mark your attendance and view your records</p>
+                </div>
+                
+                <div class="stat-cards">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Attendance</div>
+                        <div class="stat-value" id="student-total">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">This Month</div>
+                        <div class="stat-value" id="student-month">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Attendance Rate</div>
+                        <div class="stat-value" style="font-size: 2em;">0%</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>📸 Scan QR Code to Mark Attendance</h3>
+                    
+                    <!-- QR Code Scanner Section -->
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 12px; margin-bottom: 25px;">
+                        <div style="text-align: center; background: white; padding: 20px; border-radius: 10px;">
+                            <video id="qr-video" style="width: 100%; max-width: 500px; border-radius: 8px; border: 4px solid #667eea; display: none;"></video>
+                            <canvas id="qr-canvas" style="display: none;"></canvas>
+                            
+                            <div id="camera-controls" style="margin-top: 15px;">
+                                <button type="button" class="btn btn-success" onclick="startQRScanner()" id="start-scan-btn" style="padding: 15px 40px; font-size: 1.1em;">
+                                    📷 Start Camera Scanner
+                                </button>
+                                <button type="button" class="btn btn-danger" onclick="stopQRScanner()" id="stop-scan-btn" style="display: none; padding: 15px 40px; font-size: 1.1em;">
+                                    🛑 Stop Scanner
+                                </button>
+                            </div>
+                            
+                            <div id="scan-result" style="margin-top: 20px; padding: 15px; background: #d4edda; border-radius: 8px; display: none;">
+                                <p style="color: #155724; font-weight: 600; margin-bottom: 10px;">✅ QR Code Scanned Successfully!</p>
+                                <p id="scanned-token" style="font-family: monospace; background: #f8f9fa; padding: 12px; border-radius: 5px; word-break: break-all; color: #333;"></p>
+                            </div>
+
+                            <p style="margin-top: 20px; color: #666; font-size: 0.9em;">
+                                <strong>📱 Point your camera at the QR code displayed by your faculty</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Manual Token Entry Section -->
+                    <div>
+                        <h4 style="color: #667eea; margin-bottom: 15px; text-align: center;">OR Enter QR Token Manually</h4>
+                        <form onsubmit="markAttendance(event)">
+                            <div class="form-group">
+                                <label>QR Code Token</label>
+                                <input type="text" id="qr-token-input" required placeholder="Token will auto-fill when scanned, or paste it here" style="font-family: monospace;">
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-full" style="padding: 15px;">✓ Submit Attendance</button>
+                        </form>
+                    </div>
+                    <div id="attendance-alert" class="alert"></div>
+                </div>
+
+                <div class="card">
+                    <h3>📊 My Attendance History</h3>
+                    <button class="btn btn-primary" onclick="loadStudentHistory()" style="margin-bottom: 15px;">🔄 Refresh History</button>
+                    <div id="student-history" class="item-list"></div>
+                </div>
+            </div>
+
+            <!-- Faculty Dashboard -->
+            <div id="faculty-dashboard" class="screen">
+                <div class="screen-header">
+                    <h1>🏫 Faculty Dashboard</h1>
+                    <p>Generate QR codes and manage attendance sessions</p>
+                </div>
+
+                <div class="stat-cards">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Sessions</div>
+                        <div class="stat-value" id="faculty-sessions">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Sessions</div>
+                        <div class="stat-value" id="faculty-active">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">My Courses</div>
+                        <div class="stat-value" id="faculty-courses-count">0</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>✨ Generate QR Code for Attendance</h3>
+                    <p style="color: #666; margin-bottom: 20px;">📌 Display the generated QR code to your students for attendance marking</p>
+                    
+                    <form onsubmit="createSession(event)">
+                        <div class="form-group">
+                            <label>Select Course *</label>
+                            <select id="course-id" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 1em;">
+                                <option value="">-- Select a course --</option>
+                                <option value="C001">CS101 - Introduction to Computer Science</option>
+                                <option value="C002">CS201 - Data Structures</option>
+                                <option value="C003">CS301 - Algorithms</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-full" style="padding: 15px; font-size: 1.1em;">
+                            ⚡ Generate QR Code
+                        </button>
+                    </form>
+                    <div id="session-alert" class="alert"></div>
+                    
+                    <!-- QR Code Display Section -->
+                    <div id="qr-code-display" class="qr-container" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; margin-top: 25px;">
+                        <div style="background: white; padding: 30px; border-radius: 15px;">
+                            <h3 style="color: #667eea; text-align: center; margin-bottom: 20px;">📱 Show this QR Code to Students</h3>
+                            <div style="text-align: center;">
+                                <img id="qr-image" src="" alt="QR Code" style="max-width: 400px; width: 100%; border: 5px solid #667eea; border-radius: 15px; padding: 20px; background: white; box-shadow: 0 8px 25px rgba(0,0,0,0.15);">
+                            </div>
+                            <div class="qr-info" style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                                <div style="text-align: center;">
+                                    <p><strong style="color: #667eea;">QR Code Token:</strong></p>
+                                    <div class="qr-token" id="qr-token-display" style="background: white; margin: 10px auto; max-width: 500px;"></div>
+                                    <p class="qr-expiry" id="qr-expiry" style="margin-top: 15px; font-size: 1.1em;"></p>
+                                    <p style="color: #666; margin-top: 10px; font-size: 0.9em;">
+                                        ⏱️ This QR code will expire in 2-3 minutes for security
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attendance Reports Section -->
+                <div class="card">
+                    <h3>📊 Attendance Reports & Analytics</h3>
+                    <p style="color: #666; margin-bottom: 20px;">View attendance statistics and export data for your courses</p>
+                    
+                    <div class="form-group">
+                        <label>Select Course for Report</label>
+                        <select id="report-course-id" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 1em;">
+                            <option value="">-- Select a course --</option>
+                            <option value="C001">CS101 - Introduction to Computer Science</option>
+                            <option value="C002">CS201 - Data Structures</option>
+                            <option value="C003">CS301 - Algorithms</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <button class="btn btn-primary" onclick="loadCourseAttendance()" style="flex: 1;">
+                            📈 Load Attendance Report
+                        </button>
+                        <button class="btn btn-success" onclick="exportAttendanceCSV()" style="flex: 1;">
+                            📥 Export to CSV
+                        </button>
+                    </div>
+
+                    <!-- Attendance Statistics -->
+                    <div id="attendance-stats" style="display: none; margin-bottom: 20px;">
+                        <div class="stat-cards">
+                            <div class="stat-card">
+                                <div class="stat-label">Total Students</div>
+                                <div class="stat-value" id="course-total-students">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Total Sessions</div>
+                                <div class="stat-value" id="course-total-sessions">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Average Attendance</div>
+                                <div class="stat-value" id="course-avg-attendance" style="font-size: 2em;">0%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attendance Table -->
+                    <div id="attendance-table-container" style="display: none; overflow-x: auto;">
+                        <table id="attendance-table" style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                            <thead>
+                                <tr style="background: #667eea; color: white;">
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Student ID</th>
+                                    <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Student Name</th>
+                                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Classes Attended</th>
+                                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Total Classes</th>
+                                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Attendance %</th>
+                                    <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendance-table-body">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>📝 Recent Attendance Sessions</h3>
+                    <button class="btn btn-primary" onclick="loadFacultySessions()" style="margin-bottom: 15px;">🔄 Refresh Sessions</button>
+                    <div id="faculty-sessions-list" class="item-list">
+                        <p style="text-align: center; color: #666; padding: 20px;">Click "Refresh Sessions" to load your sessions</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Faculty Courses Management -->
+            <div id="faculty-courses" class="screen">
+                <div class="screen-header">
+                    <h1>My Courses</h1>
+                    <p>Manage your assigned courses</p>
+                </div>
+
+                <div class="card">
+                    <h3>➕ Create New Course</h3>
+                    <form onsubmit="createFacultyCourse(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Course Code *</label>
+                                <input type="text" id="new-course-code" required placeholder="e.g., CS101">
+                            </div>
+                            <div class="form-group">
+                                <label>Course Name *</label>
+                                <input type="text" id="new-course-name" required placeholder="e.g., Introduction to Programming">
+                            </div>
+                            <div class="form-group">
+                                <label>Department</label>
+                                <input type="text" id="new-course-dept" placeholder="e.g., Computer Science">
+                            </div>
+                            <div class="form-group">
+                                <label>Semester</label>
+                                <input type="number" id="new-course-sem" min="1" max="8" placeholder="1-8">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-full">Create Course</button>
+                    </form>
+                    <div id="create-course-alert" class="alert"></div>
+                </div>
+
+                <div class="card">
+                    <h3>📚 My Courses List</h3>
+                    <button class="btn btn-primary" onclick="loadFacultyCourses()">Load My Courses</button>
+                    <div class="spinner" id="faculty-courses-spinner"></div>
+                    <div id="faculty-courses-list" class="item-list"></div>
+                </div>
+            </div>
+
+            <!-- Admin Dashboard -->
+            <div id="admin-dashboard" class="screen">
+                <div class="screen-header">
+                    <h1>Admin Dashboard</h1>
+                    <p>Complete system overview and management</p>
+                </div>
+
+                <div class="stat-cards">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Students</div>
+                        <div class="stat-value" id="admin-students">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Faculty</div>
+                        <div class="stat-value" id="admin-faculty">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Courses</div>
+                        <div class="stat-value" id="admin-courses">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Sessions</div>
+                        <div class="stat-value" id="admin-sessions-count">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Attendances</div>
+                        <div class="stat-value" id="admin-attendances">0</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="loadAdminStats()">Refresh Statistics</button>
+            </div>
+
+            <!-- Users Management -->
+            <div id="users-screen" class="screen">
+                <div class="screen-header">
+                    <h1>Users Management</h1>
+                    <p>Manage all system users</p>
+                </div>
+
+                <div class="card">
+                    <button class="btn btn-primary" onclick="loadAllUsers()">Load All Users</button>
+                    <div class="spinner" id="users-spinner"></div>
+                    <div id="users-list" class="item-list"></div>
+                </div>
+            </div>
+
+            <!-- Courses Management -->
+            <div id="courses-screen" class="screen">
+                <div class="screen-header">
+                    <h1>Courses Management</h1>
+                    <p>View and manage all courses</p>
+                </div>
+
+                <div class="card">
+                    <button class="btn btn-primary" onclick="loadAllCourses()">Load All Courses</button>
+                    <div class="spinner" id="courses-spinner"></div>
+                    <div id="courses-list" class="item-list"></div>
+                </div>
+            </div>
+
+            <!-- Sessions Management -->
+            <div id="sessions-screen" class="screen">
+                <div class="screen-header">
+                    <h1>Sessions Management</h1>
+                    <p>View all attendance sessions</p>
+                </div>
+
+                <div class="card">
+                    <button class="btn btn-primary" onclick="loadAllSessions()">Load All Sessions</button>
+                    <div class="spinner" id="sessions-spinner"></div>
+                    <div id="sessions-list" class="item-list"></div>
+                </div>
+            </div>
+
+            <!-- Student Registration -->
+            <div id="register-screen" class="screen">
+                <div class="screen-header">
+                    <h1>Student Registration</h1>
+                    <p>Register new students in the system</p>
+                </div>
+
+                <div class="card">
+                    <form onsubmit="registerStudent(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Username *</label>
+                                <input type="text" id="reg-username" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Email *</label>
+                                <input type="email" id="reg-email" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Password *</label>
+                                <input type="password" id="reg-password" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Student ID *</label>
+                                <input type="text" id="reg-student-id" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Full Name *</label>
+                                <input type="text" id="reg-fullname" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Department</label>
+                                <input type="text" id="reg-department">
+                            </div>
+                            <div class="form-group">
+                                <label>Semester</label>
+                                <input type="number" id="reg-semester" min="1" max="8">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-full">Register Student</button>
+                    </form>
+                    <div id="register-alert" class="alert"></div>
+                </div>
+            </div>
+
+            <!-- Profile Screen -->
+            <div id="profile-screen" class="screen">
+                <div class="screen-header">
+                    <h1>My Profile</h1>
+                    <p>View and manage your profile information</p>
+                </div>
+
+                <!-- Profile Cards based on role -->
+                <div id="student-profile-view" style="display: none;">
+                    <div class="card">
+                        <h3>👤 Personal Information</h3>
+                        <div class="form-grid">
+                            <div class="info-box">
+                                <label>Full Name</label>
+                                <p id="student-profile-name" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Student ID</label>
+                                <p id="student-profile-id" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Email Address</label>
+                                <p id="student-profile-email" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Username</label>
+                                <p id="student-profile-username" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>🎓 Academic Information</h3>
+                        <div class="form-grid">
+                            <div class="info-box">
+                                <label>Department</label>
+                                <p id="student-profile-dept" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Current Semester</label>
+                                <p id="student-profile-sem" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Account Role</label>
+                                <p style="font-size: 1.1em; color: #667eea; margin-top: 5px; font-weight: 600;">STUDENT</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Account Status</label>
+                                <p style="font-size: 1.1em; color: #28a745; margin-top: 5px; font-weight: 600;">ACTIVE</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-cards">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Attendance</div>
+                            <div class="stat-value" id="student-profile-attendance">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">This Month</div>
+                            <div class="stat-value" id="student-profile-month-attendance">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Faculty Profile View -->
+                <div id="faculty-profile-view" style="display: none;">
+                    <div class="card">
+                        <h3>👤 Personal Information</h3>
+                        <div class="form-grid">
+                            <div class="info-box">
+                                <label>Full Name</label>
+                                <p id="faculty-profile-name" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Faculty ID</label>
+                                <p id="faculty-profile-id" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Email Address</label>
+                                <p id="faculty-profile-email" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Username</label>
+                                <p id="faculty-profile-username" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>🏫 Professional Information</h3>
+                        <div class="form-grid">
+                            <div class="info-box">
+                                <label>Department</label>
+                                <p id="faculty-profile-dept" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Account Role</label>
+                                <p style="font-size: 1.1em; color: #667eea; margin-top: 5px; font-weight: 600;">FACULTY</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Account Status</label>
+                                <p style="font-size: 1.1em; color: #28a745; margin-top: 5px; font-weight: 600;">ACTIVE</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-cards">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Courses</div>
+                            <div class="stat-value" id="faculty-profile-courses">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Sessions Created</div>
+                            <div class="stat-value" id="faculty-profile-sessions">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Profile View -->
+                <div id="admin-profile-view" style="display: none;">
+                    <div class="card">
+                        <h3>👤 Administrator Information</h3>
+                        <div class="form-grid">
+                            <div class="info-box">
+                                <label>Email Address</label>
+                                <p id="admin-profile-email" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Username</label>
+                                <p id="admin-profile-username" style="font-size: 1.1em; color: #333; margin-top: 5px;">-</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Account Role</label>
+                                <p style="font-size: 1.1em; color: #667eea; margin-top: 5px; font-weight: 600;">ADMINISTRATOR</p>
+                            </div>
+                            <div class="info-box">
+                                <label>Account Status</label>
+                                <p style="font-size: 1.1em; color: #28a745; margin-top: 5px; font-weight: 600;">ACTIVE</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>⚙️ System Overview</h3>
+                        <div class="stat-cards">
+                            <div class="stat-card">
+                                <div class="stat-label">Total Students</div>
+                                <div class="stat-value" id="admin-profile-students">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Total Faculty</div>
+                                <div class="stat-value" id="admin-profile-faculty">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Total Courses</div>
+                                <div class="stat-value" id="admin-profile-courses">0</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Total Sessions</div>
+                                <div class="stat-value" id="admin-profile-sessions">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>🔒 Permissions</h3>
+                        <div class="item-list">
+                            <div class="list-item">
+                                <strong>✓</strong> Full system access and control
+                            </div>
+                            <div class="list-item">
+                                <strong>✓</strong> User management (Create, Edit, Delete)
+                            </div>
+                            <div class="list-item">
+                                <strong>✓</strong> Course management (Create, Edit, Delete)
+                            </div>
+                            <div class="list-item">
+                                <strong>✓</strong> Session monitoring and management
+                            </div>
+                            <div class="list-item">
+                                <strong>✓</strong> System statistics and reports
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+
+        // Toggle Mobile Menu
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        // Close mobile menu when navigation item is clicked
+        function closeMobileMenu() {
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('mobile-overlay');
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+            }
+        }
+
+        // Show/Hide Login and Signup
+        function showSignup(event) {
+            event.preventDefault();
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('signup-screen').style.display = 'flex';
+        }
+
+        function showLogin(event) {
+            event.preventDefault();
+            document.getElementById('signup-screen').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+            // Reset signup forms
+            document.getElementById('signup-role').value = '';
+            document.querySelectorAll('#signup-screen form').forEach(form => {
+                form.style.display = 'none';
+                form.reset();
+            });
+        }
+
+        // Handle role selection in signup
+        function handleRoleChange() {
+            const role = document.getElementById('signup-role').value;
+            
+            // Hide all forms
+            document.getElementById('student-signup-form').style.display = 'none';
+            document.getElementById('faculty-signup-form').style.display = 'none';
+            document.getElementById('admin-signup-form').style.display = 'none';
+            
+            // Show selected form
+            if (role === 'student') {
+                document.getElementById('student-signup-form').style.display = 'block';
+            } else if (role === 'faculty') {
+                document.getElementById('faculty-signup-form').style.display = 'block';
+            } else if (role === 'admin') {
+                document.getElementById('admin-signup-form').style.display = 'block';
+            }
+        }
+
+        // Student Signup Handler
+        async function handleStudentSignup(event) {
+            event.preventDefault();
+            
+            const password = document.getElementById('student-signup-password').value;
+            const confirm = document.getElementById('student-signup-confirm').value;
+            
+            if (password !== confirm) {
+                showAlert('student-signup-alert', 'Passwords do not match!', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showAlert('student-signup-alert', 'Password must be at least 6 characters!', 'error');
+                return;
+            }
+            
+            const data = {
+                username: document.getElementById('student-signup-username').value,
+                email: document.getElementById('student-signup-email').value,
+                password: password,
+                student_id: document.getElementById('student-signup-id').value,
+                full_name: document.getElementById('student-signup-name').value,
+                department: document.getElementById('student-signup-dept').value,
+                semester: parseInt(document.getElementById('student-signup-sem').value) || null
+            };
+
+            try {
+                const response = await fetch('/register/student', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('student-signup-alert', result.msg + ' - Redirecting to login...', 'success');
+                    setTimeout(() => {
+                        showLogin({ preventDefault: () => {} });
+                    }, 2000);
+                } else {
+                    showAlert('student-signup-alert', result.msg, 'error');
+                }
+            } catch (error) {
+                showAlert('student-signup-alert', 'Registration failed: ' + error.message, 'error');
+            }
+        }
+
+        // Faculty Signup Handler
+        async function handleFacultySignup(event) {
+            event.preventDefault();
+            
+            const password = document.getElementById('faculty-signup-password').value;
+            const confirm = document.getElementById('faculty-signup-confirm').value;
+            
+            if (password !== confirm) {
+                showAlert('faculty-signup-alert', 'Passwords do not match!', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showAlert('faculty-signup-alert', 'Password must be at least 6 characters!', 'error');
+                return;
+            }
+            
+            const data = {
+                username: document.getElementById('faculty-signup-username').value,
+                email: document.getElementById('faculty-signup-email').value,
+                password: password,
+                faculty_id: document.getElementById('faculty-signup-id').value,
+                full_name: document.getElementById('faculty-signup-name').value,
+                department: document.getElementById('faculty-signup-dept').value
+            };
+
+            try {
+                const response = await fetch('/register/faculty', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('faculty-signup-alert', result.msg + ' - Redirecting to login...', 'success');
+                    setTimeout(() => {
+                        showLogin({ preventDefault: () => {} });
+                    }, 2000);
+                } else {
+                    showAlert('faculty-signup-alert', result.msg, 'error');
+                }
+            } catch (error) {
+                showAlert('faculty-signup-alert', 'Registration failed: ' + error.message, 'error');
+            }
+        }
+
+        // Admin Signup Handler
+        async function handleAdminSignup(event) {
+            event.preventDefault();
+            
+            const password = document.getElementById('admin-signup-password').value;
+            const confirm = document.getElementById('admin-signup-confirm').value;
+            const adminCode = document.getElementById('admin-signup-code').value;
+            
+            console.log('Admin signup attempt with code:', adminCode);
+            
+            if (password !== confirm) {
+                showAlert('admin-signup-alert', 'Passwords do not match!', 'error');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showAlert('admin-signup-alert', 'Password must be at least 6 characters!', 'error');
+                return;
+            }
+            
+            const data = {
+                username: document.getElementById('admin-signup-username').value,
+                email: document.getElementById('admin-signup-email').value,
+                password: password,
+                admin_code: adminCode
+            };
+            
+            console.log('Sending admin registration data:', { ...data, password: '***', admin_code: '***' });
+
+            try {
+                const response = await fetch('/register/admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                console.log('Admin registration response:', response.status, result);
+                
+                if (response.ok) {
+                    showAlert('admin-signup-alert', result.msg + ' - Redirecting to login...', 'success');
+                    setTimeout(() => {
+                        showLogin({ preventDefault: () => {} });
+                    }, 2000);
+                } else {
+                    showAlert('admin-signup-alert', result.msg || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                console.error('Admin registration error:', error);
+                showAlert('admin-signup-alert', 'Registration failed: ' + error.message, 'error');
+            }
+        }
+
+        // Navigation Configuration
+        const navigation = {
+            student: [
+                { id: 'student-dashboard', label: '🏠 Dashboard', icon: '🏠' },
+                { id: 'profile-screen', label: '👤 Profile', icon: '👤' }
+            ],
+            faculty: [
+                { id: 'faculty-dashboard', label: '🏠 Dashboard', icon: '🏠' },
+                { id: 'faculty-courses', label: '📚 My Courses', icon: '📚' },
+                { id: 'register-screen', label: '➕ Register Student', icon: '➕' },
+                { id: 'profile-screen', label: '👤 Profile', icon: '👤' }
+            ],
+            admin: [
+                { id: 'admin-dashboard', label: '🏠 Dashboard', icon: '🏠' },
+                { id: 'users-screen', label: '👥 Users', icon: '👥' },
+                { id: 'courses-screen', label: '📚 Courses', icon: '📚' },
+                { id: 'sessions-screen', label: '📝 Sessions', icon: '📝' },
+                { id: 'register-screen', label: '➕ Register Student', icon: '➕' },
+                { id: 'profile-screen', label: '👤 Profile', icon: '👤' }
+            ]
+        };
+
+        // Allowed screens per role
+        const allowedScreens = {
+            student: ['student-dashboard', 'profile-screen'],
+            faculty: ['faculty-dashboard', 'faculty-courses', 'register-screen', 'profile-screen'],
+            admin: ['admin-dashboard', 'users-screen', 'courses-screen', 'sessions-screen', 'register-screen', 'profile-screen']
+        };
+
+        // Initialize navigation
+        function initNavigation(role) {
+            const navMenu = document.getElementById('nav-menu');
+            navMenu.innerHTML = '';
+            
+            const items = navigation[role] || [];
+            items.forEach((item, index) => {
+                const navItem = document.createElement('div');
+                navItem.className = 'nav-item' + (index === 0 ? ' active' : '');
+                navItem.innerHTML = `<span class="nav-icon">${item.icon}</span> ${item.label}`;
+                navItem.onclick = () => showScreen(item.id);
+                navMenu.appendChild(navItem);
+            });
+        }
+
+        // Show specific screen
+        function showScreen(screenId) {
+            // Close mobile menu
+            closeMobileMenu();
+
+            // Check if user has access to this screen
+            if (currentUser && allowedScreens[currentUser.role]) {
+                if (!allowedScreens[currentUser.role].includes(screenId)) {
+                    showAlert('login-alert', 'Access Denied: You do not have permission to view this screen.', 'error');
+                    return;
+                }
+            }
+
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            // Show selected screen
+            const screen = document.getElementById(screenId);
+            if (screen) {
+                screen.classList.add('active');
+            }
+            
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.nav-item')?.classList.add('active');
+            
+            // Load profile data if profile screen is opened
+            if (screenId === 'profile-screen') {
+                loadProfileData();
+            }
+        }
+
+        // Alert helper
+        function showAlert(elementId, message, type = 'success') {
+            const alert = document.getElementById(elementId);
+            alert.textContent = message;
+            alert.className = `alert alert-${type} show`;
+            setTimeout(() => alert.classList.remove('show'), 5000);
+        }
+
+        // Login Handler
+        async function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentUser = data;
+                    
+                    // Hide login screen
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('app-container').style.display = 'flex';
+                    
+                    // Set user info
+                    document.getElementById('user-name').textContent = username;
+                    document.getElementById('user-role').textContent = data.role.toUpperCase();
+                    
+                    // Set mobile header info
+                    document.getElementById('mobile-user-name').textContent = username;
+                    document.getElementById('mobile-user-role').textContent = data.role.toUpperCase();
+                    
+                    // Initialize navigation and show sidebar
+                    initNavigation(data.role);
+                    document.getElementById('sidebar').classList.add('active');
+                    
+                    // Hide all screens first
+                    document.querySelectorAll('.screen').forEach(screen => {
+                        screen.classList.remove('active');
+                    });
+                    
+                    // Show default screen based on role
+                    const defaultScreen = {
+                        'student': 'student-dashboard',
+                        'faculty': 'faculty-dashboard',
+                        'admin': 'admin-dashboard'
+                    };
+                    
+                    const screenToShow = defaultScreen[data.role];
+                    if (screenToShow) {
+                        document.getElementById(screenToShow)?.classList.add('active');
+                    }
+                    
+                    // Load initial data based on role
+                    if (data.role === 'student') {
+                        loadStudentHistory();
+                    } else if (data.role === 'faculty') {
+                        loadFacultyCoursesCount();
+                    } else if (data.role === 'admin') {
+                        loadAdminStats();
+                    }
+                } else {
+                    showAlert('login-alert', data.msg, 'error');
+                }
+            } catch (error) {
+                showAlert('login-alert', 'Login failed: ' + error.message, 'error');
+            }
+        }
+
+        // Logout Handler
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById('app-container').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('login-username').value = '';
+            document.getElementById('login-password').value = '';
+        }
+
+        // Register Student
+        async function registerStudent(event) {
+            event.preventDefault();
+            
+            const data = {
+                username: document.getElementById('reg-username').value,
+                email: document.getElementById('reg-email').value,
+                password: document.getElementById('reg-password').value,
+                student_id: document.getElementById('reg-student-id').value,
+                full_name: document.getElementById('reg-fullname').value,
+                department: document.getElementById('reg-department').value,
+                semester: parseInt(document.getElementById('reg-semester').value) || null
+            };
+
+            try {
+                const response = await fetch('/register/student', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                showAlert('register-alert', result.msg, response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    event.target.reset();
+                }
+            } catch (error) {
+                showAlert('register-alert', 'Registration failed: ' + error.message, 'error');
+            }
+        }
+
+        // Create Session (Faculty)
+        async function createSession(event) {
+            event.preventDefault();
+            
+            if (!currentUser || currentUser.role !== 'faculty') {
+                showAlert('session-alert', 'Unauthorized', 'error');
+                return;
+            }
+
+            const courseId = document.getElementById('course-id').value;
+
+            try {
+                const response = await fetch('/faculty/session/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ course_id: courseId })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showAlert('session-alert', data.msg, 'success');
+                    document.getElementById('qr-image').src = data.qr_code_image;
+                    document.getElementById('qr-token-display').textContent = data.qr_code_token;
+                    document.getElementById('qr-expiry').textContent = 'Expires: ' + data.expiration;
+                    document.getElementById('qr-code-display').style.display = 'block';
+                } else {
+                    showAlert('session-alert', data.msg, 'error');
+                }
+            } catch (error) {
+                showAlert('session-alert', 'Failed to create session: ' + error.message, 'error');
+            }
+        }
+
+        // Mark Attendance (Student)
+        async function markAttendance(event) {
+            event.preventDefault();
+            
+            if (!currentUser || currentUser.role !== 'student') {
+                showAlert('attendance-alert', 'Unauthorized', 'error');
+                return;
+            }
+
+            const qrToken = document.getElementById('qr-token-input').value;
+
+            try {
+                const response = await fetch('/student/attendance/mark', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ qr_token: qrToken })
+                });
+
+                const data = await response.json();
+                showAlert('attendance-alert', data.msg, response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    document.getElementById('qr-token-input').value = '';
+                    loadStudentHistory();
+                }
+            } catch (error) {
+                showAlert('attendance-alert', 'Failed to mark attendance: ' + error.message, 'error');
+            }
+        }
+
+        // Load Student History
+        async function loadStudentHistory() {
+            if (!currentUser || currentUser.role !== 'student') return;
+
+            try {
+                const response = await fetch('/student/attendance/history');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const list = document.getElementById('student-history');
+                    list.innerHTML = '';
+                    
+                    document.getElementById('student-total').textContent = data.total_attendances;
+                    
+                    data.attendance_history.forEach(att => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item';
+                        item.innerHTML = `
+                            <strong>Session:</strong> ${att.session_id}<br>
+                            <strong>Marked at:</strong> ${att.marked_at}
+                        `;
+                        list.appendChild(item);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load history:', error);
+            }
+        }
+
+        // Load Faculty Sessions
+        async function loadFacultySessions() {
+            // Placeholder - would fetch faculty's sessions
+            console.log('Loading faculty sessions...');
+        }
+
+        // Load Faculty Courses Count
+        async function loadFacultyCoursesCount() {
+            try {
+                const response = await fetch('/faculty/courses');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('faculty-courses-count').textContent = data.total_courses || 0;
+                }
+            } catch (error) {
+                console.error('Failed to load courses count:', error);
+            }
+        }
+
+        // Load Course Attendance Data
+        let currentAttendanceData = [];
+
+        async function loadCourseAttendance() {
+            const courseId = document.getElementById('report-course-id').value;
+            if (!courseId) {
+                alert('Please select a course first');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/faculty/attendance/report?course_id=${courseId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    currentAttendanceData = data.students || [];
+                    displayAttendanceReport(data);
+                } else {
+                    const error = await response.json();
+                    alert(error.msg || 'Failed to load attendance report');
+                }
+            } catch (error) {
+                console.error('Failed to load attendance:', error);
+                alert('Failed to load attendance report');
+            }
+        }
+
+        function displayAttendanceReport(data) {
+            // Show statistics
+            document.getElementById('attendance-stats').style.display = 'block';
+            document.getElementById('course-total-students').textContent = data.total_students || 0;
+            document.getElementById('course-total-sessions').textContent = data.total_sessions || 0;
+            document.getElementById('course-avg-attendance').textContent = (data.average_attendance || 0) + '%';
+
+            // Display table
+            document.getElementById('attendance-table-container').style.display = 'block';
+            const tbody = document.getElementById('attendance-table-body');
+            tbody.innerHTML = '';
+
+            if (data.students && data.students.length > 0) {
+                data.students.forEach(student => {
+                    const percentage = student.attendance_percentage || 0;
+                    let statusColor = '#dc3545'; // Red
+                    let statusText = 'Poor';
+                    
+                    if (percentage >= 75) {
+                        statusColor = '#28a745'; // Green
+                        statusText = 'Excellent';
+                    } else if (percentage >= 60) {
+                        statusColor = '#ffc107'; // Yellow
+                        statusText = 'Good';
+                    } else if (percentage >= 40) {
+                        statusColor = '#fd7e14'; // Orange
+                        statusText = 'Average';
+                    }
+
+                    const row = `
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px; border: 1px solid #ddd;">${student.student_id}</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">${student.student_name}</td>
+                            <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">${student.classes_attended}</td>
+                            <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">${student.total_classes}</td>
+                            <td style="padding: 12px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${statusColor};">${percentage}%</td>
+                            <td style="padding: 12px; text-align: center; border: 1px solid #ddd;">
+                                <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85em;">
+                                    ${statusText}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No attendance data available for this course</td></tr>';
+            }
+        }
+
+        function exportAttendanceCSV() {
+            const courseId = document.getElementById('report-course-id').value;
+            if (!courseId) {
+                alert('Please select a course and load the report first');
+                return;
+            }
+
+            if (currentAttendanceData.length === 0) {
+                alert('No data to export. Please load the attendance report first.');
+                return;
+            }
+
+            // Create CSV content
+            let csv = 'Student ID,Student Name,Classes Attended,Total Classes,Attendance Percentage,Status\n';
+            
+            currentAttendanceData.forEach(student => {
+                const percentage = student.attendance_percentage || 0;
+                let status = 'Poor';
+                if (percentage >= 75) status = 'Excellent';
+                else if (percentage >= 60) status = 'Good';
+                else if (percentage >= 40) status = 'Average';
+
+                csv += `${student.student_id},${student.student_name},${student.classes_attended},${student.total_classes},${percentage}%,${status}\n`;
+            });
+
+            // Create download link
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            const courseName = document.getElementById('report-course-id').selectedOptions[0].text.replace(/[^a-zA-Z0-9]/g, '_');
+            const filename = `attendance_${courseName}_${new Date().toISOString().split('T')[0]}.csv`;
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            alert(`CSV file "${filename}" has been downloaded successfully!`);
+        }
+
+        // Faculty Course Management
+        async function createFacultyCourse(event) {
+            event.preventDefault();
+            
+            if (!currentUser || currentUser.role !== 'faculty') {
+                showAlert('create-course-alert', 'Unauthorized', 'error');
+                return;
+            }
+
+            const data = {
+                course_code: document.getElementById('new-course-code').value,
+                course_name: document.getElementById('new-course-name').value,
+                department: document.getElementById('new-course-dept').value,
+                semester: parseInt(document.getElementById('new-course-sem').value) || null
+            };
+
+            try {
+                const response = await fetch('/faculty/course/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('create-course-alert', result.msg, 'success');
+                    event.target.reset();
+                    loadFacultyCourses();
+                } else {
+                    showAlert('create-course-alert', result.msg, 'error');
+                }
+            } catch (error) {
+                showAlert('create-course-alert', 'Failed to create course: ' + error.message, 'error');
+            }
+        }
+
+        async function loadFacultyCourses() {
+            if (!currentUser || currentUser.role !== 'faculty') return;
+            
+            const spinner = document.getElementById('faculty-courses-spinner');
+            spinner.classList.add('show');
+
+            try {
+                const response = await fetch('/faculty/courses');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const list = document.getElementById('faculty-courses-list');
+                    list.innerHTML = '';
+                    
+                    if (data.courses.length === 0) {
+                        list.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No courses found. Create your first course above!</p>';
+                    } else {
+                        data.courses.forEach(course => {
+                            const item = document.createElement('div');
+                            item.className = 'list-item';
+                            item.innerHTML = `
+                                <div style="display: flex; justify-content: space-between; align-items: start;">
+                                    <div>
+                                        <strong>Code:</strong> ${course.course_code}<br>
+                                        <strong>Name:</strong> ${course.course_name}<br>
+                                        ${course.department ? `<strong>Department:</strong> ${course.department}<br>` : ''}
+                                        ${course.semester ? `<strong>Semester:</strong> ${course.semester}` : ''}
+                                    </div>
+                                    <button onclick="deleteFacultyCourse('${course.id}')" class="btn btn-danger" style="padding: 8px 15px; font-size: 0.9em;">
+                                        Delete
+                                    </button>
+                                </div>
+                            `;
+                            list.appendChild(item);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load courses:', error);
+            } finally {
+                spinner.classList.remove('show');
+            }
+        }
+
+        async function deleteFacultyCourse(courseId) {
+            if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/faculty/course/${courseId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert('create-course-alert', result.msg, 'success');
+                    loadFacultyCourses();
+                } else {
+                    alert(result.msg);
+                }
+            } catch (error) {
+                alert('Failed to delete course: ' + error.message);
+            }
+        }
+
+        // Admin Functions
+        async function loadAdminStats() {
+            if (!currentUser || currentUser.role !== 'admin') return;
+
+            try {
+                const response = await fetch('/admin/stats');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('admin-students').textContent = data.total_students;
+                    document.getElementById('admin-faculty').textContent = data.total_faculty;
+                    document.getElementById('admin-courses').textContent = data.total_courses;
+                    document.getElementById('admin-sessions-count').textContent = data.total_sessions;
+                    document.getElementById('admin-attendances').textContent = data.total_attendances;
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        async function loadAllUsers() {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            
+            const spinner = document.getElementById('users-spinner');
+            spinner.classList.add('show');
+
+            try {
+                const response = await fetch('/admin/users');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const list = document.getElementById('users-list');
+                    list.innerHTML = '';
+                    
+                    data.users.forEach(user => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item';
+                        item.innerHTML = `
+                            <strong>Username:</strong> ${user.username}<br>
+                            <strong>Email:</strong> ${user.email}<br>
+                            <strong>Role:</strong> ${user.role}<br>
+                            ${user.full_name ? `<strong>Name:</strong> ${user.full_name}<br>` : ''}
+                            ${user.department ? `<strong>Department:</strong> ${user.department}` : ''}
+                        `;
+                        list.appendChild(item);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load users:', error);
+            } finally {
+                spinner.classList.remove('show');
+            }
+        }
+
+        async function loadAllCourses() {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            
+            const spinner = document.getElementById('courses-spinner');
+            spinner.classList.add('show');
+
+            try {
+                const response = await fetch('/admin/courses');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const list = document.getElementById('courses-list');
+                    list.innerHTML = '';
+                    
+                    data.courses.forEach(course => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item';
+                        item.innerHTML = `
+                            <strong>Code:</strong> ${course.course_code}<br>
+                            <strong>Name:</strong> ${course.course_name}<br>
+                            <strong>Department:</strong> ${course.department || 'N/A'}<br>
+                            <strong>Faculty:</strong> ${course.faculty_name}
+                        `;
+                        list.appendChild(item);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load courses:', error);
+            } finally {
+                spinner.classList.remove('show');
+            }
+        }
+
+        async function loadAllSessions() {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            
+            const spinner = document.getElementById('sessions-spinner');
+            spinner.classList.add('show');
+
+            try {
+                const response = await fetch('/admin/sessions');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const list = document.getElementById('sessions-list');
+                    list.innerHTML = '';
+                    
+                    data.sessions.forEach(session => {
+                        const item = document.createElement('div');
+                        item.className = 'list-item';
+                        item.innerHTML = `
+                            <strong>ID:</strong> ${session.id}<br>
+                            <strong>Course:</strong> ${session.course}<br>
+                            <strong>Date:</strong> ${session.session_date}<br>
+                            <strong>Status:</strong> ${session.is_active ? 'Active' : 'Inactive'}<br>
+                            <strong>Attendances:</strong> ${session.total_attendances}
+                        `;
+                        list.appendChild(item);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load sessions:', error);
+            } finally {
+                spinner.classList.remove('show');
+            }
+        }
+
+        // Load Profile Data
+        async function loadProfileData() {
+            if (!currentUser) return;
+            
+            // Hide all profile views
+            document.getElementById('student-profile-view').style.display = 'none';
+            document.getElementById('faculty-profile-view').style.display = 'none';
+            document.getElementById('admin-profile-view').style.display = 'none';
+            
+            if (currentUser.role === 'student') {
+                document.getElementById('student-profile-view').style.display = 'block';
+                await loadStudentProfile();
+            } else if (currentUser.role === 'faculty') {
+                document.getElementById('faculty-profile-view').style.display = 'block';
+                await loadFacultyProfile();
+            } else if (currentUser.role === 'admin') {
+                document.getElementById('admin-profile-view').style.display = 'block';
+                await loadAdminProfile();
+            }
+        }
+
+        // Load Student Profile
+        async function loadStudentProfile() {
+            try {
+                // Get student data
+                const response = await fetch('/student/profile');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('student-profile-name').textContent = data.full_name || 'Not provided';
+                    document.getElementById('student-profile-id').textContent = data.student_id || 'N/A';
+                    document.getElementById('student-profile-email').textContent = data.email || 'N/A';
+                    document.getElementById('student-profile-username').textContent = data.username || 'N/A';
+                    document.getElementById('student-profile-dept').textContent = data.department || 'Not specified';
+                    document.getElementById('student-profile-sem').textContent = data.semester ? `Semester ${data.semester}` : 'Not specified';
+                }
+                
+                // Get attendance stats
+                const historyResponse = await fetch('/student/attendance/history');
+                if (historyResponse.ok) {
+                    const historyData = await historyResponse.json();
+                    document.getElementById('student-profile-attendance').textContent = historyData.total_attendances || 0;
+                    // Calculate this month's attendance (simplified)
+                    document.getElementById('student-profile-month-attendance').textContent = historyData.total_attendances || 0;
+                }
+            } catch (error) {
+                console.error('Failed to load student profile:', error);
+            }
+        }
+
+        // Load Faculty Profile
+        async function loadFacultyProfile() {
+            try {
+                // Get faculty data
+                const response = await fetch('/faculty/profile');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('faculty-profile-name').textContent = data.full_name || 'Not provided';
+                    document.getElementById('faculty-profile-id').textContent = data.faculty_id || 'N/A';
+                    document.getElementById('faculty-profile-email').textContent = data.email || 'N/A';
+                    document.getElementById('faculty-profile-username').textContent = data.username || 'N/A';
+                    document.getElementById('faculty-profile-dept').textContent = data.department || 'Not specified';
+                }
+                
+                // Get courses count
+                const coursesResponse = await fetch('/faculty/courses');
+                if (coursesResponse.ok) {
+                    const coursesData = await coursesResponse.json();
+                    document.getElementById('faculty-profile-courses').textContent = coursesData.total_courses || 0;
+                }
+                
+                // Sessions count (placeholder - would need backend endpoint)
+                document.getElementById('faculty-profile-sessions').textContent = '0';
+            } catch (error) {
+                console.error('Failed to load faculty profile:', error);
+            }
+        }
+
+        // Load Admin Profile
+        async function loadAdminProfile() {
+            try {
+                // Get admin data
+                const response = await fetch('/admin/profile');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('admin-profile-email').textContent = data.email || 'N/A';
+                    document.getElementById('admin-profile-username').textContent = data.username || 'N/A';
+                }
+                
+                // Get system stats
+                const statsResponse = await fetch('/admin/stats');
+                if (statsResponse.ok) {
+                    const statsData = await statsResponse.json();
+                    document.getElementById('admin-profile-students').textContent = statsData.total_students || 0;
+                    document.getElementById('admin-profile-faculty').textContent = statsData.total_faculty || 0;
+                    document.getElementById('admin-profile-courses').textContent = statsData.total_courses || 0;
+                    document.getElementById('admin-profile-sessions').textContent = statsData.total_sessions || 0;
+                }
+            } catch (error) {
+                console.error('Failed to load admin profile:', error);
+            }
+        }
+
+        // QR Code Scanner Functions
+        let qrStream = null;
+        let scanInterval = null;
+
+        async function startQRScanner() {
+            const video = document.getElementById('qr-video');
+            const canvas = document.getElementById('qr-canvas');
+            const startBtn = document.getElementById('start-scan-btn');
+            const stopBtn = document.getElementById('stop-scan-btn');
+            const scanResult = document.getElementById('scan-result');
+
+            try {
+                // Request camera access
+                qrStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } // Use back camera on mobile
+                });
+                
+                video.srcObject = qrStream;
+                video.play();
+                video.style.display = 'block';
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                scanResult.style.display = 'none';
+
+                // Start scanning
+                scanInterval = setInterval(() => {
+                    scanQRCode(video, canvas);
+                }, 500); // Scan every 500ms
+
+            } catch (error) {
+                alert('Camera access denied or not available. Please use manual token entry.');
+                console.error('Camera error:', error);
+            }
+        }
+
+        function stopQRScanner() {
+            const video = document.getElementById('qr-video');
+            const startBtn = document.getElementById('start-scan-btn');
+            const stopBtn = document.getElementById('stop-scan-btn');
+
+            if (qrStream) {
+                qrStream.getTracks().forEach(track => track.stop());
+                qrStream = null;
+            }
+
+            if (scanInterval) {
+                clearInterval(scanInterval);
+                scanInterval = null;
+            }
+
+            video.style.display = 'none';
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+        }
+
+        function scanQRCode(video, canvas) {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                const context = canvas.getContext('2d');
+                canvas.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                
+                // Use jsQR library to decode QR code
+                if (typeof jsQR !== 'undefined') {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'dontInvert',
+                    });
+
+                    if (code) {
+                        // QR code detected!
+                        handleScannedQR(code.data);
+                    }
+                } else {
+                    // Fallback: Simple pattern detection (look for our token format)
+                    console.log('jsQR library not loaded, using manual entry');
+                }
+            }
+        }
+
+        function handleScannedQR(qrData) {
+            // Stop scanner
+            stopQRScanner();
+
+            // Display scanned result
+            document.getElementById('scanned-token').textContent = qrData;
+            document.getElementById('scan-result').style.display = 'block';
+
+            // Auto-fill the input field
+            document.getElementById('qr-token-input').value = qrData;
+
+            // Show success message
+            showAlert('attendance-alert', 'QR Code scanned successfully! Click "Mark Attendance" to submit.', 'success');
+        }
+    </script>
+</body>
+</html>
